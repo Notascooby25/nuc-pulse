@@ -91,9 +91,9 @@ def build_diagnostic_markdown(state: dict) -> str:
                 f"- **Latest File:** `{p.get('latest_file', 'none')}` "
                 f"({_format_bytes(p.get('latest_size_bytes'))}, {p.get('version_count', 0)} versions retained)"
             )
-            lines.append(
-                f"- **Age:** {p.get('age_hours', 'n/a')}h (Threshold: {p.get('threshold_hours', 'n/a')}h)"
-            )
+            threshold = p.get("threshold_hours", "n/a")
+            limit = "one-off, no schedule" if threshold is None else f"Threshold: {threshold}h"
+            lines.append(f"- **Age:** {p.get('age_hours', 'n/a')}h ({limit})")
 
     if healthy_offsite or healthy_local:
         lines.append(

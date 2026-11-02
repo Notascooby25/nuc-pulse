@@ -1,4 +1,5 @@
 import os
+import re
 
 import httpx
 
@@ -10,7 +11,7 @@ CORE_APP_DEFINITIONS = [
         "name": "Audio Scrobbler",
         "keywords": ["scrobbler", "audio-scrobbler"],
         "default_port": 5173,
-        "health_path": "/",
+        "health_path": "/health",
     },
     {
         "id": "expense_tracker",
@@ -41,6 +42,37 @@ CORE_APP_DEFINITIONS = [
         "health_path": None,
     },
 ]
+
+
+RE_SESSION = re.compile(r"Failed=(\d+)\s+Scanned=(\d+)")
+
+
+def _decode_docker_logs(raw: bytes) -> str:
+    """Strip the 8-byte header Docker puts before each line for containers without a terminal."""
+    if len(raw) < 8 or raw[0] not in (0, 1, 2) or raw[1:4] != b"\x00\x00\x00":
+        return raw.decode("utf-8", errors="replace")
+    out = bytearray()
+    pos = 0
+    while pos + 8 <= len(raw):
+        size = int.from_bytes(raw[pos + 4 : pos + 8], "big")
+        out += raw[pos + 8 : pos + 8 + size]
+        pos += 8 + size
+    return out.decode("utf-8", errors="replace")
+
+
+def _assess_watchtower_logs(log_text: str) -> tuple[bool, list[str]]:
+    """Return (has_error, notes) from Watchtower's log lines."""
+    lower = log_text.lower()
+    has_error = "level=error" in lower or "level=fatal" in lower
+    sessions = RE_SESSION.findall(log_text)
+    if any(int(failed) > 0 for failed, _ in sessions):
+        has_error = True
+    notes = []
+    if "level=warning" in lower:
+        notes.append("warnings in logs")
+    if sessions and int(sessions[-1][1]) == 0:
+        notes.append("watching no containers")
+    return has_error, notes
 
 
 async def _probe_health(
@@ -149,6 +181,7 @@ async def inspect_apps_and_containers(
                 # Check recent logs
                 wt_log_tail = ""
                 has_wt_error = False
+                wt_notes = []
                 try:
                     async with httpx.AsyncClient(base_url="http://docker", **client_kwargs) as docker_client:
                         log_resp = await docker_client.get(
@@ -156,9 +189,8 @@ async def inspect_apps_and_containers(
                             timeout=3.0,
                         )
                         if log_resp.status_code == 200:
-                            wt_log_tail = sanitize_text(log_resp.text)
-                            if "level=error" in wt_log_tail.lower() or "failed" in wt_log_tail.lower():
-                                has_wt_error = True
+                            wt_log_tail = sanitize_text(_decode_docker_logs(log_resp.content))
+                            has_wt_error, wt_notes = _assess_watchtower_logs(wt_log_tail)
                 except Exception:
                     pass
 
@@ -171,7 +203,9 @@ async def inspect_apps_and_containers(
                     "name": clean_name,
                     "healthy": wt_healthy,
                     "scope": str(scope),
-                    "status_text": "Errors reported in logs" if has_wt_error else status,
+                    "status_text": "Errors reported in logs"
+                    if has_wt_error
+                    else status + (f" ({', '.join(wt_notes)})" if wt_notes else ""),
                     "log_tail": wt_log_tail,
                 })
 
