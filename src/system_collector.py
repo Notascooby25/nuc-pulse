@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import socket
+
 import psutil
 
 RE_UPDATES = re.compile(r"(\d+)\s+updates?\s+can\s+be\s+applied", re.IGNORECASE)
@@ -47,11 +48,7 @@ def _get_fast_vitals_sync(disk_path: str, reboot_flag_path: str) -> dict:
     # 4. Reboot flag
     reboot_required = os.path.exists(reboot_flag_path)
 
-    # 5. Uptime
-    uptime_seconds = int(psutil.boot_time())
-    boot_delta = int(os.times().elapsed) if hasattr(os, "times") else 0
-
-    # 6. Internet check (1.1.1.1:53)
+    # 5. Internet check (1.1.1.1:53)
     internet_ok = False
     try:
         with socket.create_connection(("1.1.1.1", 53), timeout=1.0):

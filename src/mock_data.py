@@ -1,5 +1,6 @@
 import time
 
+
 def get_mock_scenario(scenario: str = "nominal") -> dict:
     now = time.time()
     is_nominal = scenario == "nominal"

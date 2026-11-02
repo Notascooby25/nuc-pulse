@@ -1,6 +1,8 @@
-import pytest
 import httpx
+import pytest
+
 from src.main import app
+
 
 @pytest.mark.asyncio
 async def test_api_status_mock_mode_nominal():

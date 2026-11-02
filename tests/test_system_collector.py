@@ -1,6 +1,8 @@
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from src.system_collector import collect_fast_vitals, collect_os_updates
+
 
 @pytest.mark.asyncio
 async def test_collect_fast_vitals(tmp_path):

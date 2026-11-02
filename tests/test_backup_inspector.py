@@ -1,7 +1,10 @@
 import os
 import time
+
 import pytest
+
 from src.backup_inspector import inspect_backups
+
 
 @pytest.mark.asyncio
 async def test_inspect_backups_multi_root_nominal(tmp_path):
@@ -52,7 +55,7 @@ async def test_inspect_backups_multi_root_nominal(tmp_path):
     assert len(res["offsite"]) == 2
     assert any(x["name"] == "Synology NAS Mirror" and x["healthy"] for x in res["offsite"])
     assert any(x["name"] == "Google Drive Sync" and x["healthy"] for x in res["offsite"])
-    
+
     # Check pipelines
     pipeline_names = [p["name"] for p in res["local_pipelines"]]
     assert "sleepdb" in pipeline_names

@@ -1,6 +1,8 @@
-import pytest
 import httpx
+import pytest
+
 from src.app_inspector import inspect_apps_and_containers
+
 
 @pytest.mark.asyncio
 async def test_inspect_apps_and_containers_with_mock_docker():

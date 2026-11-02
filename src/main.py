@@ -2,14 +2,15 @@ import asyncio
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from src.system_collector import collect_fast_vitals, collect_os_updates
-from src.backup_inspector import inspect_backups
 from src.app_inspector import inspect_apps_and_containers
+from src.backup_inspector import inspect_backups
 from src.mock_data import get_mock_scenario
+from src.system_collector import collect_fast_vitals, collect_os_updates
 
 CACHED_STATE = {}
 MOCK_MODE = os.environ.get("NUC_PULSE_MOCK", "0") in ["1", "true", "yes"]

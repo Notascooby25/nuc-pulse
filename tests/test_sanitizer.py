@@ -1,5 +1,5 @@
-import pytest
 from src.sanitizer import sanitize_text
+
 
 def test_redacts_healthcheck_urls_and_secrets():
     raw = (
