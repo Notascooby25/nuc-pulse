@@ -2,6 +2,12 @@
 
 What changed in each version, newest first, in plain English. One entry per release, added just before the owner's go-ahead.
 
+## 0.2.2 - 2026-11-02
+- Each app is now found by its app name and role, so Sleep Wellness Tracker is checked at its web page and no longer shows a false "HTTP 401". The scrobbler and expense tracker checks no longer depend on the order Docker lists containers in.
+- If an app's container is missing, its row shows a cross saying so instead of disappearing.
+- Each app row says which container and address it checked, with a note if no Watchtower is keeping it up to date.
+- Each Watchtower row lists the containers it looks after. A Watchtower looking after none, or whose last check scanned nothing, shows a cross with the reason.
+
 ## 0.2.1 - 2026-11-02
 - Watchtowers no longer show a red cross for normal logs. A cross now means a real error or a failed update; warnings appear as a note.
 - A note shows when a Watchtower is watching no containers.

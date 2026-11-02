@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from src.app_inspector import inspect_apps_and_containers
+from src.app_inspector import CORE_APP_DEFINITIONS, inspect_apps_and_containers
 
 
 @pytest.mark.asyncio
@@ -10,12 +10,16 @@ async def test_inspect_apps_and_containers_with_mock_docker():
     containers_payload = [
         {
             "Id": "c1",
-            "Names": ["/audio_scrobbler_frontend"],
-            "Image": "ghcr.io/notascooby25/audio-scrobbler-app-frontend:latest",
+            "Names": ["/audio-scrobbler-app-backend-1"],
+            "Image": "ghcr.io/notascooby25/audio-scrobbler-app-backend:latest",
             "State": "running",
             "Status": "Up 2 days (healthy)",
-            "Ports": [{"PublicPort": 5173, "PrivatePort": 5173, "IP": "0.0.0.0"}],
-            "Labels": {"com.centurylinklabs.watchtower.scope": "audio-scrobbler-app"},
+            "Ports": [{"PublicPort": 8010, "PrivatePort": 8000, "IP": "0.0.0.0"}],
+            "Labels": {
+                "com.centurylinklabs.watchtower.scope": "audio-scrobbler-app",
+                "com.docker.compose.project": "audio-scrobbler-app",
+                "com.docker.compose.service": "backend",
+            },
         },
         {
             "Id": "c2",
@@ -24,7 +28,11 @@ async def test_inspect_apps_and_containers_with_mock_docker():
             "State": "running",
             "Status": "Up 2 days",
             "Ports": [{"PublicPort": 8502, "PrivatePort": 8502, "IP": "0.0.0.0"}],
-            "Labels": {"com.centurylinklabs.watchtower.scope": "expense_tracker"},
+            "Labels": {
+                "com.centurylinklabs.watchtower.scope": "expense_tracker",
+                "com.docker.compose.project": "uk-expense-tracker",
+                "com.docker.compose.service": "expense-tracker-web",
+            },
         },
         {
             "Id": "c3",
@@ -34,7 +42,15 @@ async def test_inspect_apps_and_containers_with_mock_docker():
             "Status": "Up 4 days",
             "Ports": [],
             "Labels": {},
-            "Command": "sleep_backend sleep_frontend_web",
+        },
+        {
+            "Id": "c5",
+            "Names": ["/sleep_backend"],
+            "Image": "ghcr.io/notascooby25/sleep-wellness-tracker-backend:latest",
+            "State": "running",
+            "Status": "Up 2 days",
+            "Ports": [],
+            "Labels": {},
         },
         {
             "Id": "c4",
@@ -54,6 +70,9 @@ async def test_inspect_apps_and_containers_with_mock_docker():
         elif "/containers/c3/logs" in url:
             # Watchtower logs
             return httpx.Response(200, text="time=\"2026-11-02T08:00:00Z\" level=info msg=\"Session done\"\n")
+        elif "/containers/c3/json" in url:
+            # Watchtower told to update named containers only
+            return httpx.Response(200, json={"Config": {"Env": [], "Cmd": ["sleep_backend"]}})
         return httpx.Response(404)
 
     docker_transport = httpx.MockTransport(mock_docker_handler)
@@ -68,6 +87,12 @@ async def test_inspect_apps_and_containers_with_mock_docker():
         docker_socket="/dummy/socket",
         transport=docker_transport,
         probe_transport=probe_transport,
+        # Only the apps in this fixture; missing apps are covered in test_container_matching.py
+        app_definitions=[
+            {**d, "expect_watchtower": False}
+            for d in CORE_APP_DEFINITIONS
+            if d["id"] in ("audio_scrobbler", "expense_tracker")
+        ],
     )
 
     assert res["docker_available"] is True
@@ -83,10 +108,10 @@ async def test_inspect_apps_and_containers_with_mock_docker():
     wt = res["watchtowers"][0]
     assert wt["name"] == "sleep_watchtower"
     assert wt["healthy"] is True
-    assert "sleep_backend sleep_frontend_web" in wt["scope"]
+    assert wt["watching"] == ["sleep_backend"]
 
     # All containers
-    assert len(res["containers"]) == 4
+    assert len(res["containers"]) == 5
     assert any(c["name"] == "random_unrecognized_service" for c in res["containers"])
 
 @pytest.mark.asyncio

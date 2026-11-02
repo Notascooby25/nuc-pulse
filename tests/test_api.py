@@ -48,3 +48,14 @@ async def test_api_report_endpoint_degraded():
         assert data["attention_count"] > 0
         assert "# NUC Pulse Diagnostic Report" in data["markdown"]
         assert "Google Drive Sync" in data["markdown"]
+
+
+def test_mock_nominal_mirrors_real_layout():
+    from src.mock_data import get_mock_scenario
+
+    apps = get_mock_scenario("nominal")["apps"]
+    by_id = {a["id"]: a for a in apps["core_apps"]}
+    assert all("probe_target" in a and a["notes"] == [] for a in by_id.values())
+    assert by_id["sleepwell"]["container_name"] == "sleep_frontend_web"
+    assert by_id["audio_scrobbler"]["container_name"] == "audio-scrobbler-app-backend-1"
+    assert all(w["watching"] for w in apps["watchtowers"])

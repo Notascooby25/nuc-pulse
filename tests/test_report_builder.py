@@ -31,3 +31,16 @@ def test_build_diagnostic_markdown_nominal():
     assert "ALL SYSTEMS NOMINAL" in md
     assert "No failing or stale backups detected" in md
     assert "No unhealthy applications or containers detected" in md
+
+
+def test_report_shows_watchtower_reason_and_watching():
+    md = build_diagnostic_markdown(get_mock_scenario("degraded"))
+    assert "sleep_watchtower" in md
+    assert "no running container carries the scope label" in md
+    assert "**Watching:** none" in md
+
+
+def test_report_lists_app_notes():
+    md = build_diagnostic_markdown(get_mock_scenario("degraded"))
+    assert "Container not found (expected jellyfin / jellyfin)" in md
+    assert "not auto-updated" in md

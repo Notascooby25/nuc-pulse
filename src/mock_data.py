@@ -9,6 +9,8 @@ def get_mock_scenario(scenario: str = "nominal") -> dict:
     if not is_nominal:
         attention_items.append("Google Drive Sync: FAILED to upload (connection timeout)")
         attention_items.append("UK Expense Tracker: HTTP 500 Server Error")
+        attention_items.append("Jellyfin Server: container not found")
+        attention_items.append("sleep_watchtower: watching no containers")
         attention_items.append("OS Updates: 3 security updates pending")
 
     return {
@@ -157,80 +159,107 @@ def get_mock_scenario(scenario: str = "nominal") -> dict:
                     "id": "audio_scrobbler",
                     "name": "Audio Scrobbler",
                     "healthy": True,
-                    "status_text": "HTTP 200 OK (12ms)",
-                    "port": 5173,
-                    "container_name": "audio_scrobbler_frontend",
+                    "status_text": "HTTP 200 OK",
+                    "port": 8010,
+                    "container_name": "audio-scrobbler-app-backend-1",
+                    "probe_target": ":8010/health",
+                    "notes": [],
                 },
                 {
                     "id": "expense_tracker",
                     "name": "UK Expense Tracker",
                     "healthy": is_nominal,
-                    "status_text": "HTTP 200 OK (8ms)" if is_nominal else "HTTP 500 Server Error",
+                    "status_text": "HTTP 200 OK" if is_nominal else "Up 8 hours - HTTP 500 Error",
                     "port": 8502,
                     "container_name": "uk_expense_tracker_web",
+                    "probe_target": ":8502/",
+                    "notes": [],
                 },
                 {
                     "id": "sleepwell",
                     "name": "Sleep Wellness Tracker",
                     "healthy": True,
-                    "status_text": "HTTP 200 OK (15ms)",
+                    "status_text": "HTTP 200 OK",
                     "port": 8510,
                     "container_name": "sleep_frontend_web",
+                    "probe_target": ":8510/",
+                    "notes": [] if is_nominal
+                    else ["not auto-updated: no Watchtower is watching sleep_frontend_web"],
                 },
                 {
                     "id": "jellyfin",
                     "name": "Jellyfin Server",
-                    "healthy": True,
-                    "status_text": "HTTP 200 OK (Active Streaming)",
+                    "healthy": is_nominal,
+                    "status_text": "HTTP 200 OK" if is_nominal
+                    else "Container not found (expected jellyfin / jellyfin)",
                     "port": 8096,
-                    "container_name": "jellyfin",
+                    "container_name": "jellyfin" if is_nominal else None,
+                    "probe_target": ":8096/health" if is_nominal else None,
+                    "notes": [],
                 },
                 {
                     "id": "cloudflared",
                     "name": "Cloudflare Tunnel",
                     "healthy": True,
-                    "status_text": "Tunnel active (nuc-tunnel)",
+                    "status_text": "Up 8 hours",
                     "port": None,
                     "container_name": "cloudflared",
+                    "probe_target": None,
+                    "notes": [],
                 },
             ],
             "watchtowers": [
                 {
                     "id": "wt1",
                     "name": "sleep_watchtower",
-                    "healthy": True,
-                    "scope": "sleep_backend sleep_frontend_web",
-                    "status_text": "Up 4 days (watching no containers)",
-                    "log_tail": "time=\"2026-11-02T08:30:00Z\" level=info msg=\"Session done\"\n",
+                    "healthy": is_nominal,
+                    "running": True,
+                    "scope": "sleep-wellness-tracker",
+                    "watching": ["sleep_backend", "sleep_frontend_web"] if is_nominal else [],
+                    "status_text": "Up 52 minutes (healthy)" if is_nominal
+                    else "Watching no containers — no running container carries the scope label "
+                    "`sleep-wellness-tracker`, so nothing will be updated",
+                    "log_tail": "time=\"2026-11-02T19:30:45Z\" level=info msg=\"Session done\" "
+                    f"Failed=0 Scanned={2 if is_nominal else 0} Updated=0 notify=no\n",
                 },
                 {
                     "id": "wt2",
                     "name": "watchtower_expense_tracker",
                     "healthy": True,
+                    "running": True,
                     "scope": "expense_tracker",
-                    "status_text": "Up 4 days (warnings in logs)",
-                    "log_tail": "time=\"2026-11-02T08:30:00Z\" level=info msg=\"Session done\"\n",
+                    "watching": ["e24ad8b74e3c_uk_expense_tracker", "uk_expense_tracker_web"],
+                    "status_text": "Up 7 hours (healthy)",
+                    "log_tail": "time=\"2026-11-02T19:30:00Z\" level=info msg=\"Session done\" "
+                    "Failed=0 Scanned=2 Updated=0 notify=no\n",
                 },
                 {
                     "id": "wt3",
-                    "name": "audio-scrobbler-app-watchtower",
+                    "name": "audio-scrobbler-app-watchtower-1",
                     "healthy": True,
+                    "running": True,
                     "scope": "audio-scrobbler-app",
-                    "status_text": "Up 4 days (polling every 300s)",
-                    "log_tail": "time=\"2026-11-02T08:30:00Z\" level=info msg=\"Session done\"\n",
+                    "watching": [
+                        "audio-scrobbler-app-backend-1",
+                        "audio-scrobbler-app-frontend-1",
+                        "audio-scrobbler-app-worker-1",
+                    ],
+                    "status_text": "Up 8 hours (healthy)",
+                    "log_tail": "time=\"2026-11-02T19:30:00Z\" level=info msg=\"Session done\" "
+                    "Failed=0 Scanned=3 Updated=0 notify=no\n",
                 },
             ],
             "containers": [
-                {"name": "audio_scrobbler_backend", "state": "running", "healthy": True, "ports": [8000]},
-                {"name": "audio_scrobbler_frontend", "state": "running", "healthy": True, "ports": [5173]},
-                {"name": "audio_scrobbler_worker", "state": "running", "healthy": True, "ports": []},
+                {"name": "audio-scrobbler-app-backend-1", "state": "running", "healthy": True, "ports": [8010]},
+                {"name": "audio-scrobbler-app-frontend-1", "state": "running", "healthy": True, "ports": [5173]},
+                {"name": "audio-scrobbler-app-worker-1", "state": "running", "healthy": True, "ports": []},
                 {"name": "sleep_backend", "state": "running", "healthy": True, "ports": [8000]},
                 {"name": "sleep_frontend_web", "state": "running", "healthy": True, "ports": [8510]},
-                {"name": "sleep_db", "state": "running", "healthy": True, "ports": [5432]},
-                {"name": "uk_expense_tracker", "state": "running", "healthy": True, "ports": [8501]},
+                {"name": "sleep_db", "state": "running", "healthy": True, "ports": []},
+                {"name": "e24ad8b74e3c_uk_expense_tracker", "state": "running", "healthy": True, "ports": [8501]},
                 {"name": "uk_expense_tracker_web", "state": "running", "healthy": is_nominal, "ports": [8502]},
-                {"name": "jellyfin", "state": "running", "healthy": True, "ports": [8096]},
                 {"name": "cloudflared", "state": "running", "healthy": True, "ports": []},
-            ],
+            ] + ([{"name": "jellyfin", "state": "running", "healthy": True, "ports": [8096]}]
+                 if is_nominal else []),
         },
     }
