@@ -143,7 +143,12 @@ def _watched_containers(settings: dict, self_name: str, containers: list[dict]) 
             continue
         if settings["label_enable"] and enable != "true":
             continue
-        if (labels.get(SCOPE_LABEL) or None) != settings["scope"]:
+        # As Watchtower does: no scope watches everything; scope "none" watches only unscoped containers.
+        container_scope = labels.get(SCOPE_LABEL) or None
+        if settings["scope"] == "none":
+            if container_scope is not None:
+                continue
+        elif settings["scope"] is not None and container_scope != settings["scope"]:
             continue
         if settings["names"] and name not in settings["names"]:
             continue
@@ -292,8 +297,9 @@ async def inspect_apps_and_containers(
                 has_wt_error = False
                 wt_notes = []
                 inspect_json = None
-                try:
-                    async with httpx.AsyncClient(base_url="http://docker", **client_kwargs) as docker_client:
+                async with httpx.AsyncClient(base_url="http://docker", **client_kwargs) as docker_client:
+                    # Separate tries: a failed log read must not lose the scope settings.
+                    try:
                         log_resp = await docker_client.get(
                             f"/containers/{c.get('Id')}/logs?stdout=1&stderr=1&tail=20",
                             timeout=3.0,
@@ -301,11 +307,14 @@ async def inspect_apps_and_containers(
                         if log_resp.status_code == 200:
                             wt_log_tail = sanitize_text(_decode_docker_logs(log_resp.content))
                             has_wt_error, wt_notes = _assess_watchtower_logs(wt_log_tail)
+                    except Exception:
+                        pass
+                    try:
                         inspect_resp = await docker_client.get(f"/containers/{c.get('Id')}/json", timeout=3.0)
                         if inspect_resp.status_code == 200:
                             inspect_json = inspect_resp.json()
-                except Exception:
-                    pass
+                    except Exception:
+                        pass
 
                 settings = _watchtower_settings(labels, inspect_json)
                 watching = _watched_containers(settings, clean_name, containers)
@@ -314,16 +323,21 @@ async def inspect_apps_and_containers(
                 problems = []
                 if has_wt_error:
                     problems.append("Errors reported in logs")
-                if not watching:
+                if not watching and scope is None:
+                    problems.append(
+                        "Watching no containers — there is no running container for it to update"
+                        f"{' with enable=true' if settings['label_enable'] else ''}"
+                    )
+                elif not watching:
                     problems.append(
                         "Watching no containers — no running container carries the scope label "
-                        f"`{scope or 'none'}`{' with enable=true' if settings['label_enable'] else ''}"
+                        f"`{scope}`{' with enable=true' if settings['label_enable'] else ''}"
                         ", so nothing will be updated"
                     )
                 elif _last_scan_was_empty(wt_log_tail):
                     problems.append("Last check scanned 0 containers, so nothing will be updated")
                 if scope is None:
-                    wt_notes.append("no scope set: watches all unscoped containers")
+                    wt_notes.append("no scope set: watches all containers")
 
                 wt_healthy = is_running and not problems
                 if not wt_healthy:
@@ -334,7 +348,7 @@ async def inspect_apps_and_containers(
                     "name": clean_name,
                     "healthy": wt_healthy,
                     "running": is_running,
-                    "scope": scope or "none (watches all unscoped)",
+                    "scope": scope or "none (watches all)",
                     "watching": watching,
                     "status_text": "; ".join(problems)
                     if problems

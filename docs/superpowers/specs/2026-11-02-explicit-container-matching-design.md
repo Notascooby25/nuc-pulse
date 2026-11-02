@@ -63,7 +63,7 @@ Note: `e24ad8b74e3c_uk_expense_tracker` is service `expense-tracker` (port 8501)
   - containers labelled `com.centurylinklabs.watchtower.enable=false` are always excluded.
   Shown in the row, e.g. "watching sleep_backend, sleep_frontend_web". *My call — stopped containers don't count because Watchtower skips them by default.*
 - **Zero watched containers:** ❌ with the note "watching no containers — no container carries the scope label `<scope>`, so nothing will be updated". The existing log-based `Scanned=0` signal becomes a ❌ with a note too.
-- **No scope at all:** keep ✅ with the note "no scope set: watches all unscoped containers". It counts as watching only running containers that carry **no** scope label (current Watchtower behaviour), so it never hides a missing scope match for the owner's apps. *My call.*
+- **No scope at all:** keep ✅ with the note "no scope set: watches all containers". As in Watchtower itself, it watches every running container, scoped or not; a Watchtower with scope `none` watches only containers with no scope label. *Changed after review: the first draft wrongly said an unscoped Watchtower skips scoped containers.*
 - **Coverage for core apps (goal 5):** an app is covered only if a **running** Watchtower's watched list includes its checked container. A stopped Watchtower is already ❌ and covers nothing. *My call.*
 - Existing log checks (errors, failed sessions, warnings as notes) are unchanged.
 

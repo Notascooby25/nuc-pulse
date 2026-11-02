@@ -28,7 +28,7 @@ def _watchtower(name="sleep_watchtower", *, labels=None, state="running"):
     return _container(name, labels=labels, state=state, image="containrrr/watchtower:latest")
 
 
-async def _inspect(containers, *, inspect=None, inspect_status=200):
+async def _inspect(containers, *, inspect=None, inspect_status=200, logs_raise=False, inspect_raise=False):
     """inspect maps container name -> Config dict returned by /containers/{id}/json."""
     inspect = inspect or {}
 
@@ -37,10 +37,14 @@ async def _inspect(containers, *, inspect=None, inspect_status=200):
         if path.endswith("/containers/json"):
             return httpx.Response(200, json=containers)
         if path.endswith("/logs"):
+            if logs_raise:
+                raise httpx.ReadTimeout("logs timed out", request=request)
             return httpx.Response(200, content=SESSION_OK.encode())
         if path.endswith("/json"):
             cid = path.split("/")[-2]
             name = cid.removeprefix("id_")
+            if inspect_raise:
+                raise httpx.ReadTimeout("inspect timed out", request=request)
             if inspect_status != 200:
                 return httpx.Response(inspect_status)
             return httpx.Response(200, json={"Id": cid, "Config": inspect.get(name, {})})
@@ -157,16 +161,54 @@ async def test_watching_nothing_is_a_cross_with_reason():
 
 
 @pytest.mark.asyncio
-async def test_no_scope_watches_unscoped_only():
+async def test_no_scope_watches_everything():
     _, wts = await _inspect([
         _watchtower(),
         _container("plain"),
         _container("scoped", labels={SCOPE: "other"}),
     ])
     wt = wts["sleep_watchtower"]
-    assert wt["watching"] == ["plain"]
+    assert wt["watching"] == ["plain", "scoped"]
     assert wt["healthy"] is True
     assert "no scope set" in wt["status_text"]
+
+
+@pytest.mark.asyncio
+async def test_scope_none_watches_unscoped_only():
+    _, wts = await _inspect(
+        [_watchtower(), _container("plain"), _container("scoped", labels={SCOPE: "other"})],
+        inspect={"sleep_watchtower": {"Env": ["WATCHTOWER_SCOPE=none"], "Cmd": []}},
+    )
+    assert wts["sleep_watchtower"]["watching"] == ["plain"]
+
+
+@pytest.mark.asyncio
+async def test_no_scope_watching_nothing_has_its_own_reason():
+    _, wts = await _inspect([_watchtower()])
+    wt = wts["sleep_watchtower"]
+    assert wt["healthy"] is False
+    assert "`none`" not in wt["status_text"]
+    assert "no running container for it to update" in wt["status_text"]
+
+
+@pytest.mark.asyncio
+async def test_failed_log_read_still_reads_settings():
+    env = {"Env": ["WATCHTOWER_SCOPE=expense_tracker"], "Cmd": []}
+    _, wts = await _inspect(
+        [_watchtower("expense_wt"), _container("web", labels={SCOPE: "expense_tracker"})],
+        inspect={"expense_wt": env},
+        logs_raise=True,
+    )
+    assert wts["expense_wt"]["scope"] == "expense_tracker"
+    assert wts["expense_wt"]["watching"] == ["web"]
+
+
+@pytest.mark.asyncio
+async def test_settings_read_raising_falls_back_to_label():
+    label = {SCOPE: "s"}
+    _, wts = await _inspect([_watchtower(labels=label), _container("a", labels=label)], inspect_raise=True)
+    assert wts["sleep_watchtower"]["watching"] == ["a"]
+    assert wts["sleep_watchtower"]["healthy"] is True
 
 
 @pytest.mark.asyncio
