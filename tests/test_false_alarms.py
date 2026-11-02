@@ -50,11 +50,21 @@ WATCHTOWER = {
     "Labels": {},
 }
 
+WATCHED_APP = {
+    "Id": "app1",
+    "Names": ["/some_app"],
+    "Image": "ghcr.io/example/app:latest",
+    "State": "running",
+    "Status": "Up 1 hour",
+    "Ports": [],
+    "Labels": {},
+}
+
 
 async def _watchtower_with_logs(body):
     def docker(request: httpx.Request):
         if "/containers/json" in str(request.url):
-            return httpx.Response(200, json=[WATCHTOWER])
+            return httpx.Response(200, json=[WATCHTOWER, WATCHED_APP])
         if "/logs" in str(request.url):
             return httpx.Response(200, content=body)
         return httpx.Response(404)
@@ -63,6 +73,7 @@ async def _watchtower_with_logs(body):
         docker_socket="/dummy/socket",
         transport=httpx.MockTransport(docker),
         probe_transport=httpx.MockTransport(lambda r: httpx.Response(200)),
+        app_definitions=[],
     )
     return res, res["watchtowers"][0]
 
@@ -91,10 +102,11 @@ async def test_failed_watchtower_session_is_a_cross():
 
 
 @pytest.mark.asyncio
-async def test_watchtower_watching_nothing_is_noted():
-    _, wt = await _watchtower_with_logs(_framed(SESSION_NOTHING_WATCHED * 3))
-    assert wt["healthy"] is True
-    assert "watching no containers" in wt["status_text"].lower()
+async def test_watchtower_scanning_nothing_is_a_cross():
+    res, wt = await _watchtower_with_logs(_framed(SESSION_NOTHING_WATCHED * 3))
+    assert wt["healthy"] is False
+    assert res["all_healthy"] is False
+    assert "scanned 0" in wt["status_text"].lower()
 
 
 @pytest.mark.asyncio

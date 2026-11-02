@@ -34,7 +34,15 @@ async def test_inspect_apps_and_containers_with_mock_docker():
             "Status": "Up 4 days",
             "Ports": [],
             "Labels": {},
-            "Command": "sleep_backend sleep_frontend_web",
+        },
+        {
+            "Id": "c5",
+            "Names": ["/sleep_backend"],
+            "Image": "ghcr.io/notascooby25/sleep-wellness-tracker-backend:latest",
+            "State": "running",
+            "Status": "Up 2 days",
+            "Ports": [],
+            "Labels": {},
         },
         {
             "Id": "c4",
@@ -54,6 +62,9 @@ async def test_inspect_apps_and_containers_with_mock_docker():
         elif "/containers/c3/logs" in url:
             # Watchtower logs
             return httpx.Response(200, text="time=\"2026-11-02T08:00:00Z\" level=info msg=\"Session done\"\n")
+        elif "/containers/c3/json" in url:
+            # Watchtower told to update named containers only
+            return httpx.Response(200, json={"Config": {"Env": [], "Cmd": ["sleep_backend"]}})
         return httpx.Response(404)
 
     docker_transport = httpx.MockTransport(mock_docker_handler)
@@ -83,10 +94,10 @@ async def test_inspect_apps_and_containers_with_mock_docker():
     wt = res["watchtowers"][0]
     assert wt["name"] == "sleep_watchtower"
     assert wt["healthy"] is True
-    assert "sleep_backend sleep_frontend_web" in wt["scope"]
+    assert wt["watching"] == ["sleep_backend"]
 
     # All containers
-    assert len(res["containers"]) == 4
+    assert len(res["containers"]) == 5
     assert any(c["name"] == "random_unrecognized_service" for c in res["containers"])
 
 @pytest.mark.asyncio
