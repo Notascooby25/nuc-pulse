@@ -177,6 +177,8 @@ function renderCoreApps(apps) {
       <div>
         <div class="app-name">${escapeHtml(app.name)}</div>
         <div class="app-sub">${escapeHtml(app.status_text)}</div>
+        ${app.container_name ? `<div class="app-sub app-checked">Checked ${escapeHtml(app.container_name)}${app.probe_target ? ` at ${escapeHtml(app.probe_target)}` : ""}</div>` : ""}
+        ${(app.notes || []).map(note => `<div class="app-note">${escapeHtml(note)}</div>`).join("")}
       </div>
       <div>
         <span class="status-icon">${app.healthy ? "✅" : "❌"}</span>
@@ -201,6 +203,7 @@ function renderWatchtowers(wts) {
             <div>
               <div class="pipeline-name">${escapeHtml(wt.name)}</div>
               <div class="pipeline-sub">Scope: ${escapeHtml(wt.scope)} • ${escapeHtml(wt.status_text)}</div>
+              <div class="pipeline-sub">Watching: ${escapeHtml((wt.watching || []).join(", ") || "none")}</div>
             </div>
           </div>
           <span class="pipeline-badge">Logs ▾</span>

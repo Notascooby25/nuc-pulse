@@ -112,22 +112,31 @@ def build_diagnostic_markdown(state: dict) -> str:
         containers = apps.get("containers", []) or []
 
         bad_core = [a for a in core_apps if not a.get("healthy", False)]
+        noted_core = [a for a in core_apps if a.get("healthy", False) and a.get("notes")]
         bad_wt = [w for w in watchtowers if not w.get("healthy", False)]
         bad_containers = [c for c in containers if not c.get("healthy", False)]
 
-        if not bad_core and not bad_wt and not bad_containers:
+        if not bad_core and not noted_core and not bad_wt and not bad_containers:
             lines.append("- ✅ No unhealthy applications or containers detected.")
         else:
             for a in bad_core:
+                target = f" at `{a['probe_target']}`" if a.get("probe_target") else ""
                 lines.append(
                     f"- ❌ **Core App `{a.get('name')}`** (container `{a.get('container_name')}`, "
-                    f"port `{a.get('port')}`): {a.get('status_text')}"
+                    f"port `{a.get('port')}`{target}): {a.get('status_text')}"
                 )
+                for note in a.get("notes") or []:
+                    lines.append(f"  - Note: {note}")
+            for a in noted_core:
+                lines.append(f"- ⚠️ **Core App `{a.get('name')}`** is healthy but has notes:")
+                for note in a.get("notes") or []:
+                    lines.append(f"  - Note: {note}")
             for w in bad_wt:
                 lines.append(
                     f"### ❌ Watchtower: `{w.get('name')}` (scope: `{w.get('scope')}`)"
                 )
                 lines.append(f"- **Status:** {w.get('status_text')}")
+                lines.append(f"- **Watching:** {', '.join(w.get('watching') or []) or 'none'}")
                 wt_log = (w.get("log_tail") or "").strip()
                 if wt_log:
                     lines.append("```text")

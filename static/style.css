@@ -414,6 +414,17 @@ body {
   color: var(--text-muted);
 }
 
+.app-checked,
+.app-note {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.app-note {
+  font-size: 0.75rem;
+  color: var(--amber);
+}
+
 /* Drawer / Table */
 .container-drawer {
   background: var(--card-bg);
