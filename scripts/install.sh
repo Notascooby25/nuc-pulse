@@ -25,9 +25,11 @@ if command -v loginctl >/dev/null 2>&1; then
     loginctl enable-linger "$USER" || true
 fi
 
-# 3. Install unit file with exact repository path substituted
+# 3. Install unit files with exact repository path substituted
 mkdir -p "$SYSTEMD_USER_DIR"
 sed "s|__REPO_DIR__|$REPO_DIR|g" "$REPO_DIR/scripts/$SERVICE_NAME" > "$SYSTEMD_USER_DIR/$SERVICE_NAME"
+sed "s|__REPO_DIR__|$REPO_DIR|g" "$REPO_DIR/scripts/nuc-pulse-autoupdate.service" > "$SYSTEMD_USER_DIR/nuc-pulse-autoupdate.service"
+cp "$REPO_DIR/scripts/nuc-pulse-autoupdate.timer" "$SYSTEMD_USER_DIR/nuc-pulse-autoupdate.timer"
 
 # 4. Reload, reset any previous failed state, and restart
 systemctl --user daemon-reload
@@ -35,8 +37,12 @@ systemctl --user reset-failed "$SERVICE_NAME" 2>/dev/null || true
 systemctl --user enable "$SERVICE_NAME"
 systemctl --user restart "$SERVICE_NAME"
 
+# 5. Enable and start the 15-minute background auto-updater timer
+systemctl --user enable --now nuc-pulse-autoupdate.timer
+
 echo ""
 echo "=== NUC Pulse installed and running! ==="
-echo "Check status: systemctl --user status $SERVICE_NAME"
-echo "View logs:    journalctl --user -u $SERVICE_NAME -f"
-echo "Dashboard:    http://localhost:8520"
+echo "Check status:  systemctl --user status $SERVICE_NAME"
+echo "View logs:     journalctl --user -u $SERVICE_NAME -f"
+echo "Auto-updater:  systemctl --user list-timers --all | grep autoupdate"
+echo "Dashboard:     http://localhost:8520"

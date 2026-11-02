@@ -1,0 +1,11 @@
+[Unit]
+Description=NUC Pulse Automated Background Updater
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=__REPO_DIR__
+ExecStart=__REPO_DIR__/scripts/autoupdate.sh
+StandardOutput=journal
+StandardError=journal
