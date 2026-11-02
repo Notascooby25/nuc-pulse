@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from src.app_inspector import inspect_apps_and_containers
+from src.app_inspector import CORE_APP_DEFINITIONS, inspect_apps_and_containers
 
 
 @pytest.mark.asyncio
@@ -10,12 +10,16 @@ async def test_inspect_apps_and_containers_with_mock_docker():
     containers_payload = [
         {
             "Id": "c1",
-            "Names": ["/audio_scrobbler_frontend"],
-            "Image": "ghcr.io/notascooby25/audio-scrobbler-app-frontend:latest",
+            "Names": ["/audio-scrobbler-app-backend-1"],
+            "Image": "ghcr.io/notascooby25/audio-scrobbler-app-backend:latest",
             "State": "running",
             "Status": "Up 2 days (healthy)",
-            "Ports": [{"PublicPort": 5173, "PrivatePort": 5173, "IP": "0.0.0.0"}],
-            "Labels": {"com.centurylinklabs.watchtower.scope": "audio-scrobbler-app"},
+            "Ports": [{"PublicPort": 8010, "PrivatePort": 8000, "IP": "0.0.0.0"}],
+            "Labels": {
+                "com.centurylinklabs.watchtower.scope": "audio-scrobbler-app",
+                "com.docker.compose.project": "audio-scrobbler-app",
+                "com.docker.compose.service": "backend",
+            },
         },
         {
             "Id": "c2",
@@ -24,7 +28,11 @@ async def test_inspect_apps_and_containers_with_mock_docker():
             "State": "running",
             "Status": "Up 2 days",
             "Ports": [{"PublicPort": 8502, "PrivatePort": 8502, "IP": "0.0.0.0"}],
-            "Labels": {"com.centurylinklabs.watchtower.scope": "expense_tracker"},
+            "Labels": {
+                "com.centurylinklabs.watchtower.scope": "expense_tracker",
+                "com.docker.compose.project": "uk-expense-tracker",
+                "com.docker.compose.service": "expense-tracker-web",
+            },
         },
         {
             "Id": "c3",
@@ -79,6 +87,12 @@ async def test_inspect_apps_and_containers_with_mock_docker():
         docker_socket="/dummy/socket",
         transport=docker_transport,
         probe_transport=probe_transport,
+        # Only the apps in this fixture; missing apps are covered in test_container_matching.py
+        app_definitions=[
+            {**d, "expect_watchtower": False}
+            for d in CORE_APP_DEFINITIONS
+            if d["id"] in ("audio_scrobbler", "expense_tracker")
+        ],
     )
 
     assert res["docker_available"] is True

@@ -5,43 +5,77 @@ import httpx
 
 from src.sanitizer import sanitize_text
 
+# Each app is matched by the labels Docker Compose puts on its containers (app + role),
+# which survive recreation and renames. Cloudflare isn't run by Compose, so it's matched by name.
 CORE_APP_DEFINITIONS = [
     {
         "id": "audio_scrobbler",
         "name": "Audio Scrobbler",
-        "keywords": ["scrobbler", "audio-scrobbler"],
-        "default_port": 5173,
+        "match": {"project": "audio-scrobbler-app", "service": "backend"},
+        "port": 8010,
         "health_path": "/health",
+        "expect_watchtower": True,
     },
     {
         "id": "expense_tracker",
         "name": "UK Expense Tracker",
-        "keywords": ["expense_tracker", "uk-expense-tracker"],
-        "default_port": 8502,
+        "match": {"project": "uk-expense-tracker", "service": "expense-tracker-web"},
+        "port": 8502,
         "health_path": "/",
+        "expect_watchtower": True,
     },
     {
         "id": "sleepwell",
         "name": "Sleep Wellness Tracker",
-        "keywords": ["sleep", "sleepwell"],
-        "default_port": 8510,
+        "match": {"project": "sleep-wellness-tracker", "service": "frontend_web"},
+        "port": 8510,
         "health_path": "/",
+        "expect_watchtower": True,
     },
     {
         "id": "jellyfin",
         "name": "Jellyfin Server",
-        "keywords": ["jellyfin"],
-        "default_port": 8096,
+        "match": {"project": "jellyfin", "service": "jellyfin"},
+        "port": 8096,
         "health_path": "/health",
+        "expect_watchtower": False,
     },
     {
         "id": "cloudflared",
         "name": "Cloudflare Tunnel",
-        "keywords": ["cloudflared", "nuc-tunnel"],
-        "default_port": None,
+        "match": {"container_name": "cloudflared"},
+        "port": None,
         "health_path": None,
+        "expect_watchtower": False,
     },
 ]
+
+
+def _describe_match(match: dict) -> str:
+    if "container_name" in match:
+        return f"container {match['container_name']}"
+    return f"{match['project']} / {match['service']}"
+
+
+def _find_app_container(match: dict, containers: list[dict]) -> tuple[dict | None, int]:
+    """The container for an app (running ones first, then by name) and how many matched."""
+    found = []
+    for c in containers:
+        name = (c.get("Names") or [""])[0].lstrip("/")
+        labels = c.get("Labels") or {}
+        if "container_name" in match:
+            ok = name == match["container_name"]
+        else:
+            ok = (
+                labels.get("com.docker.compose.project") == match["project"]
+                and labels.get("com.docker.compose.service") == match["service"]
+            )
+        if ok:
+            found.append((((c.get("State") or "").lower() != "running"), name, c))
+    if not found:
+        return None, 0
+    found.sort(key=lambda item: item[:2])
+    return found[0][2], len(found)
 
 
 RE_SESSION = re.compile(r"Failed=(\d+)\s+Scanned=(\d+)")
@@ -309,40 +343,56 @@ async def inspect_apps_and_containers(
                 })
 
         # Match Core Apps
+        covered = {name for w in watchtowers if w["running"] for name in w["watching"]}
         for app_def in app_definitions:
-            # Find matching container
-            matched_c = None
-            for c in parsed_containers:
-                for kw in app_def["keywords"]:
-                    if kw in c["name"].lower() or kw in c["image"].lower():
-                        matched_c = c
-                        break
-                if matched_c:
-                    break
+            raw, match_count = _find_app_container(app_def["match"], containers)
+            port, path = app_def["port"], app_def["health_path"]
+            notes = []
 
-            if matched_c:
-                target_port = matched_c["ports"][0] if matched_c["ports"] else app_def["default_port"]
-                if target_port and app_def["health_path"]:
-                    probe_ok, probe_text = await _probe_health(
-                        probe_client, "127.0.0.1", target_port, app_def["health_path"]
-                    )
-                    healthy = matched_c["healthy"] and probe_ok
-                    status_text = probe_text if probe_ok else f"{matched_c['status']} - {probe_text}"
-                else:
-                    healthy = matched_c["healthy"]
-                    status_text = matched_c["status"]
-
-                if not healthy:
-                    all_healthy = False
-
+            if raw is None:
+                all_healthy = False
                 core_apps.append({
                     "id": app_def["id"],
                     "name": app_def["name"],
-                    "healthy": healthy,
-                    "status_text": status_text,
-                    "port": target_port,
-                    "container_name": matched_c["name"],
+                    "healthy": False,
+                    "status_text": f"Container not found (expected {_describe_match(app_def['match'])})",
+                    "port": port,
+                    "container_name": None,
+                    "probe_target": None,
+                    "notes": notes,
                 })
+                continue
+
+            raw_name = (raw.get("Names") or [""])[0].lstrip("/")
+            matched_c = next(p for p in parsed_containers if p["name"] == raw_name)
+            if match_count > 1:
+                notes.append(f"{match_count} containers match")
+            if app_def["expect_watchtower"] and matched_c["name"] not in covered:
+                notes.append(f"not auto-updated: no Watchtower is watching {matched_c['name']}")
+
+            probe_target = None
+            if port and path:
+                probe_target = f":{port}{path}"
+                probe_ok, probe_text = await _probe_health(probe_client, "127.0.0.1", port, path)
+                healthy = matched_c["healthy"] and probe_ok
+                status_text = probe_text if probe_ok else f"{matched_c['status']} - {probe_text}"
+            else:
+                healthy = matched_c["healthy"]
+                status_text = matched_c["status"]
+
+            if not healthy:
+                all_healthy = False
+
+            core_apps.append({
+                "id": app_def["id"],
+                "name": app_def["name"],
+                "healthy": healthy,
+                "status_text": status_text,
+                "port": port,
+                "container_name": matched_c["name"],
+                "probe_target": probe_target,
+                "notes": notes,
+            })
 
     return {
         "docker_available": True,

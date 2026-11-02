@@ -132,8 +132,11 @@ async def test_scrobbler_is_checked_at_its_health_address():
         "Image": "ghcr.io/example/audio-scrobbler-app-backend:latest",
         "State": "running",
         "Status": "Up 27 minutes (healthy)",
-        "Ports": [{"PublicPort": 8000, "PrivatePort": 8000}],
-        "Labels": {},
+        "Ports": [{"PublicPort": 8010, "PrivatePort": 8000}],
+        "Labels": {
+            "com.docker.compose.project": "audio-scrobbler-app",
+            "com.docker.compose.service": "backend",
+        },
     }
     asked = []
 
@@ -143,7 +146,7 @@ async def test_scrobbler_is_checked_at_its_health_address():
         return httpx.Response(404)
 
     def probe(request: httpx.Request):
-        asked.append(request.url.path)
+        asked.append((request.url.port, request.url.path))
         return httpx.Response(200 if request.url.path == "/health" else 404)
 
     res = await inspect_apps_and_containers(
@@ -152,7 +155,7 @@ async def test_scrobbler_is_checked_at_its_health_address():
         probe_transport=httpx.MockTransport(probe),
     )
     app = next(a for a in res["core_apps"] if "Scrobbler" in a["name"])
-    assert asked == ["/health"]
+    assert (8010, "/health") in asked
     assert app["healthy"] is True
 
 
