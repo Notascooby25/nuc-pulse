@@ -128,6 +128,17 @@ def get_mock_scenario(scenario: str = "nominal") -> dict:
                     "age_hours": 4.3,
                     "threshold_hours": 26.0,
                 },
+                {
+                    "name": "pre_deploy",
+                    "healthy": True,
+                    "status_text": "One-off copy (186d 16h ago)",
+                    "version_count": 2,
+                    "latest_file": "pre_deploy_20260429_202400pgdata.tar.gz",
+                    "latest_size_bytes": 15500000,
+                    "last_run": now - 186 * 86400,
+                    "age_hours": 4480.2,
+                    "threshold_hours": None,
+                },
             ],
             "timers": [
                 {
@@ -189,7 +200,7 @@ def get_mock_scenario(scenario: str = "nominal") -> dict:
                     "name": "sleep_watchtower",
                     "healthy": True,
                     "scope": "sleep_backend sleep_frontend_web",
-                    "status_text": "Up 4 days (polling every 300s)",
+                    "status_text": "Up 4 days (watching no containers)",
                     "log_tail": "time=\"2026-11-02T08:30:00Z\" level=info msg=\"Session done\"\n",
                 },
                 {
@@ -197,7 +208,7 @@ def get_mock_scenario(scenario: str = "nominal") -> dict:
                     "name": "watchtower_expense_tracker",
                     "healthy": True,
                     "scope": "expense_tracker",
-                    "status_text": "Up 4 days (polling every 300s)",
+                    "status_text": "Up 4 days (warnings in logs)",
                     "log_tail": "time=\"2026-11-02T08:30:00Z\" level=info msg=\"Session done\"\n",
                 },
                 {

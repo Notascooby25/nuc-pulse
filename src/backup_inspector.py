@@ -20,6 +20,9 @@ DEFAULT_THRESHOLDS = {
 
 ARCHIVE_EXTENSIONS = {".dump", ".gz", ".tar"}
 
+# Backups made by hand or before a deploy/restore: no schedule, so never "stale"
+ONE_OFF_PREFIXES = ("manual", "pre_", "pre-")
+
 
 def _format_age(hours: float) -> str:
     if hours < 1.0:
@@ -160,11 +163,12 @@ def _inspect_backups_sync(srv_root: str, current_time: float) -> dict:
         file_list.sort(key=lambda x: x["mtime"], reverse=True)
         latest = file_list[0]
         age_hours = (current_time - latest["mtime"]) / 3600.0
-        threshold = DEFAULT_THRESHOLDS.get(cat_name, 26.0)
+        one_off = cat_name.startswith(ONE_OFF_PREFIXES)
+        threshold = None if one_off else DEFAULT_THRESHOLDS.get(cat_name, 26.0)
 
         # Check conditions
         is_empty = latest["size_bytes"] == 0
-        is_stale = age_hours > threshold
+        is_stale = threshold is not None and age_hours > threshold
 
         healthy = (not is_empty) and (not is_stale)
         if not healthy:
@@ -174,6 +178,8 @@ def _inspect_backups_sync(srv_root: str, current_time: float) -> dict:
             status_text = "Latest archive is empty (0 bytes)"
         elif is_stale:
             status_text = f"Stale archive ({_format_age(age_hours)})"
+        elif one_off:
+            status_text = f"One-off copy ({_format_age(age_hours)})"
         else:
             status_text = f"Fresh ({_format_age(age_hours)})"
 
