@@ -262,6 +262,13 @@ body {
   background: var(--green);
 }
 
+/* Two-column layout for backups */
+.backups-two-col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
 /* Pipelines list */
 .pipelines-list {
   display: flex;

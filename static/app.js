@@ -102,26 +102,28 @@ function renderDashboard(data) {
 }
 
 function renderPipelines(backups) {
-  const container = document.getElementById("pipelines-container");
-  const items = [];
+  const offsiteContainer = document.getElementById("offsite-pipelines-container");
+  const localContainer = document.getElementById("local-pipelines-container");
 
   // 1. Offsite sync items
+  const offsiteItems = [];
   if (backups.offsite) {
     backups.offsite.forEach(item => {
-      items.push({
+      offsiteItems.push({
         title: item.name,
         healthy: item.healthy,
         status_text: item.status_text,
-        badge: "Offsite Sync",
+        badge: "Sync Status",
         log: item.log_tail,
       });
     });
   }
 
   // 2. Local pipelines
+  const localItems = [];
   if (backups.local_pipelines) {
     backups.local_pipelines.forEach(item => {
-      items.push({
+      localItems.push({
         title: item.display_name || item.name,
         healthy: item.healthy,
         status_text: `${item.status_text} • ${item.version_count} versions stored`,
@@ -131,30 +133,33 @@ function renderPipelines(backups) {
     });
   }
 
-  if (items.length === 0) {
-    container.innerHTML = '<div class="loading-placeholder">No backup pipelines found.</div>';
-    return;
-  }
-
-  container.innerHTML = items.map((p, idx) => `
-    <div class="pipeline-row ${p.healthy ? "healthy" : "unhealthy"}">
-      <details>
-        <summary class="pipeline-header">
-          <div class="pipeline-title-wrap">
-            <span class="status-icon">${p.healthy ? "✅" : "❌"}</span>
-            <div>
-              <div class="pipeline-name">${escapeHtml(p.title)}</div>
-              <div class="pipeline-sub">${escapeHtml(p.status_text)}</div>
+  const renderCardList = (items) => {
+    if (!items || items.length === 0) {
+      return '<div class="loading-placeholder">None found.</div>';
+    }
+    return items.map(p => `
+      <div class="pipeline-row ${p.healthy ? "healthy" : "unhealthy"}">
+        <details>
+          <summary class="pipeline-header">
+            <div class="pipeline-title-wrap">
+              <span class="status-icon">${p.healthy ? "✅" : "❌"}</span>
+              <div>
+                <div class="pipeline-name">${escapeHtml(p.title)}</div>
+                <div class="pipeline-sub">${escapeHtml(p.status_text)}</div>
+              </div>
             </div>
+            <span class="pipeline-badge">${escapeHtml(p.badge)} ▾</span>
+          </summary>
+          <div class="pipeline-drawer">
+            <div class="log-box">${escapeHtml(p.log || "No log details available.")}</div>
           </div>
-          <span class="pipeline-badge">${escapeHtml(p.badge)} ▾</span>
-        </summary>
-        <div class="pipeline-drawer">
-          <div class="log-box">${escapeHtml(p.log || "No log details available.")}</div>
-        </div>
-      </details>
-    </div>
-  `).join("");
+        </details>
+      </div>
+    `).join("");
+  };
+
+  offsiteContainer.innerHTML = renderCardList(offsiteItems);
+  localContainer.innerHTML = renderCardList(localItems);
 }
 
 function renderCoreApps(apps) {
