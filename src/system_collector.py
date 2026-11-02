@@ -3,6 +3,8 @@ import os
 import re
 import shutil
 import socket
+import subprocess
+import time
 
 import psutil
 
@@ -10,7 +12,37 @@ RE_UPDATES = re.compile(r"(\d+)\s+updates?\s+can\s+be\s+applied", re.IGNORECASE)
 RE_SECURITY = re.compile(r"(\d+)\s+of\s+these\s+updates?\s+are\s+.*security", re.IGNORECASE)
 
 
+def _read_os_name(os_release_path: str = "/etc/os-release") -> str:
+    if os.path.exists(os_release_path):
+        try:
+            with open(os_release_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("PRETTY_NAME="):
+                        return line.split("=", 1)[1].strip().strip('"')
+        except OSError:
+            pass
+    return "Linux"
+
+
+def _format_uptime(boot_time: float, now: float | None = None) -> str:
+    current = time.time() if now is None else now
+    elapsed = max(0, int(current - boot_time))
+    days = elapsed // 86400
+    hours = (elapsed % 86400) // 3600
+    mins = (elapsed % 3600) // 60
+    if days > 0:
+        return f"up {days} days, {hours} hours"
+    if hours > 0:
+        return f"up {hours} hours, {mins} mins"
+    return f"up {mins} mins"
+
+
 def _get_fast_vitals_sync(disk_path: str, reboot_flag_path: str) -> dict:
+    # 0. Hostname, OS name & Uptime
+    hostname = socket.gethostname()
+    os_name = _read_os_name()
+    uptime_text = _format_uptime(psutil.boot_time())
+
     # 1. CPU
     cpu_percent = psutil.cpu_percent(interval=None)
     try:
@@ -45,7 +77,7 @@ def _get_fast_vitals_sync(disk_path: str, reboot_flag_path: str) -> dict:
         "healthy": disk_percent < 90.0,
     }
 
-    # 4. Reboot flag
+    # 4. Reboot flag (Ubuntu/Debian /var/run/reboot-required or Fedora needs-restarting)
     reboot_required = os.path.exists(reboot_flag_path)
 
     # 5. Internet check (1.1.1.1:53)
@@ -56,7 +88,7 @@ def _get_fast_vitals_sync(disk_path: str, reboot_flag_path: str) -> dict:
     except OSError:
         internet_ok = False
 
-    # 7. Tailscale check (check socket or interface)
+    # 6. Tailscale check (check interface)
     tailscale_ok = False
     try:
         addrs = psutil.net_if_addrs()
@@ -66,6 +98,9 @@ def _get_fast_vitals_sync(disk_path: str, reboot_flag_path: str) -> dict:
         tailscale_ok = False
 
     return {
+        "hostname": hostname,
+        "os_name": os_name,
+        "uptime_text": uptime_text,
         "cpu_percent": cpu_percent,
         "load_avg": load_avg,
         "memory": memory_info,
@@ -83,7 +118,19 @@ async def collect_fast_vitals(
     return await asyncio.to_thread(_get_fast_vitals_sync, disk_path, reboot_flag_path)
 
 
+def _count_dnf_lines(output: str) -> int:
+    count = 0
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(("Last metadata", "Updating and loading", "Repositories loaded", "Obsoleting", "Security:")):
+            continue
+        if len(line.split()) >= 3:
+            count += 1
+    return count
+
+
 def _get_os_updates_sync(updates_file: str) -> dict:
+    # 1. Ubuntu / Debian update-notifier file
     if os.path.exists(updates_file):
         try:
             with open(updates_file, "r", encoding="utf-8") as f:
@@ -112,12 +159,45 @@ def _get_os_updates_sync(updates_file: str) -> dict:
                 "summary": f"Could not read updates: {e}",
             }
 
-    # Fallback when running on Fedora/test environment or updates-available is absent
+    # 2. Fedora / RHEL dnf check-update (using local cache --cacheonly or fast timeout)
+    if shutil.which("dnf"):
+        try:
+            sec_proc = subprocess.run(
+                ["dnf", "updateinfo", "list", "--security", "--available", "-q"],
+                capture_output=True,
+                text=True,
+                timeout=8.0,
+                check=False,
+            )
+            all_proc = subprocess.run(
+                ["dnf", "check-update", "-q"],
+                capture_output=True,
+                text=True,
+                timeout=8.0,
+                check=False,
+            )
+            security = _count_dnf_lines(sec_proc.stdout)
+            total = max(security, _count_dnf_lines(all_proc.stdout))
+            healthy = security == 0
+            summary = (
+                "All updates installed"
+                if total == 0
+                else f"{total} updates pending ({security} security)"
+            )
+            return {
+                "total_updates": total,
+                "security_updates": security,
+                "healthy": healthy,
+                "summary": summary,
+            }
+        except Exception:
+            pass
+
     return {
         "total_updates": 0,
         "security_updates": 0,
         "healthy": True,
-        "summary": "OS up to date or update-notifier not installed",
+        "summary": "All updates installed",
     }
 
 
