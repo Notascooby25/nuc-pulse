@@ -1,0 +1,30 @@
+# Secrets
+.env*
+!.env.example
+secrets.toml
+*.pem
+*.key
+
+# Real data
+data/
+*.csv
+*.bak
+*.rejected.csv
+*.db
+*.sqlite
+*.sql
+*.dump
+backups/
+
+# Examples are safe to keep
+!*.example.*
+
+# Build and tool output
+__pycache__/
+.venv/
+venv/
+node_modules/
+dist/
+.pytest_cache/
+.ruff_cache/
+*.log
