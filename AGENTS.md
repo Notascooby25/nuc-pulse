@@ -10,6 +10,7 @@
 
 ## How to work here
 Follow the shared `safe-change` skill for every change. For a public repo, never commit IPs, hostnames, account IDs, secrets or known weaknesses.
+- **Frontend / Visual changes:** Always start the local mock preview (`scripts/preview.sh up`) and explicitly prompt the owner to review `http://localhost:8520` locally before asking for the go-ahead to merge and go live.
 
 ## Commands
 - Lint: `.venv/bin/ruff check .`

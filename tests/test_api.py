@@ -7,7 +7,6 @@ from src.main import app
 @pytest.mark.asyncio
 async def test_api_status_mock_mode_nominal():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        # Default mock mode or scenario nominal
         resp = await client.get("/api/status?scenario=nominal")
         assert resp.status_code == 200
         data = resp.json()
@@ -17,6 +16,7 @@ async def test_api_status_mock_mode_nominal():
         assert "system" in data
         assert "backups" in data
         assert "apps" in data
+
 
 @pytest.mark.asyncio
 async def test_api_status_mock_mode_degraded():
@@ -28,6 +28,7 @@ async def test_api_status_mock_mode_degraded():
         assert data["attention_count"] > 0
         assert len(data["attention_items"]) > 0
 
+
 @pytest.mark.asyncio
 async def test_api_refresh_endpoint():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
@@ -35,3 +36,15 @@ async def test_api_refresh_endpoint():
         assert resp.status_code == 200
         data = resp.json()
         assert data.get("refreshed") is True
+
+
+@pytest.mark.asyncio
+async def test_api_report_endpoint_degraded():
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.get("/api/report?scenario=degraded")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["overall_healthy"] is False
+        assert data["attention_count"] > 0
+        assert "# NUC Pulse Diagnostic Report" in data["markdown"]
+        assert "Google Drive Sync" in data["markdown"]

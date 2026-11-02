@@ -19,6 +19,7 @@
           <span class="status-dot"></span>
           <span id="master-status-text">CHECKING SYSTEMS...</span>
         </div>
+        <button id="export-btn" class="btn btn-export" onclick="openDiagnosticReport()" title="Export diagnostic Markdown report for troubleshooting">📋 Export Issues</button>
         <button id="refresh-btn" class="btn" title="Force check now">🔄 Refresh</button>
       </div>
     </header>
@@ -32,7 +33,10 @@
 
     <!-- Attention Banner (only shown if there are issues) -->
     <div id="attention-box" class="attention-box" style="display: none;">
-      <div class="attention-title">⚠️ Attention Required:</div>
+      <div class="attention-header">
+        <div class="attention-title">⚠️ Attention Required:</div>
+        <button class="btn btn-sm btn-export-alert" onclick="openDiagnosticReport()">📋 Copy Diagnostic Report</button>
+      </div>
       <ul id="attention-list"></ul>
     </div>
 
@@ -136,6 +140,23 @@
       <span>Auto-refreshing every 30 seconds • <span id="last-updated-text">Just now</span></span>
     </footer>
   </div>
+
+  <!-- Diagnostic Report Modal -->
+  <dialog id="report-modal" class="report-modal">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title">📋 Diagnostic Issues Report</h3>
+        <div class="modal-sub">Sanitized Markdown report (secrets & IPs automatically removed) — ready to paste into AI chat.</div>
+      </div>
+      <button class="btn btn-sm" onclick="closeDiagnosticReport()" aria-label="Close modal">✕ Close</button>
+    </div>
+    <div class="modal-actions">
+      <button id="copy-report-btn" class="btn btn-primary" onclick="copyDiagnosticReport()">📋 Copy to Clipboard</button>
+      <button class="btn" onclick="downloadDiagnosticReport()">💾 Download .md</button>
+      <span id="copy-feedback" class="copy-feedback"></span>
+    </div>
+    <textarea id="report-textarea" class="report-textarea" readonly spellcheck="false">Generating diagnostic report...</textarea>
+  </dialog>
 
   <script src="/static/app.js"></script>
 </body>

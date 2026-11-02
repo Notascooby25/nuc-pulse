@@ -12,6 +12,9 @@ RE_KV_SECRETS = re.compile(
     re.IGNORECASE,
 )
 
+# Redact private / Tailscale / public IPv4 addresses except 127.0.0.1 and 0.0.0.0
+RE_IPV4 = re.compile(r"\b(?!(?:127\.0\.0\.1|0\.0\.0\.0)\b)(?:\d{1,3}\.){3}\d{1,3}\b")
+
 
 def sanitize_text(text: str) -> str:
     """Scrub sensitive credentials, tokens, and healthcheck URLs from logs or output."""
@@ -24,3 +27,9 @@ def sanitize_text(text: str) -> str:
     # 3. Key-value secrets
     cleaned = RE_KV_SECRETS.sub(r"\1<redacted>", cleaned)
     return cleaned
+
+
+def sanitize_diagnostic_report(text: str) -> str:
+    """Scrub secrets, tokens, healthcheck URLs, and non-loopback IPv4 addresses for safe sharing."""
+    cleaned = sanitize_text(text)
+    return RE_IPV4.sub("<redacted-ip>", cleaned)

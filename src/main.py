@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from src.app_inspector import inspect_apps_and_containers
 from src.backup_inspector import inspect_backups
 from src.mock_data import get_mock_scenario
+from src.report_builder import build_diagnostic_markdown
 from src.system_collector import collect_fast_vitals, collect_os_updates
 
 CACHED_STATE = {}
@@ -100,6 +101,17 @@ async def get_status(scenario: str = Query(default="nominal")):
     if MOCK_MODE or not CACHED_STATE:
         return get_mock_scenario(scenario)
     return CACHED_STATE
+
+
+@app.get("/api/report")
+async def get_diagnostic_report(scenario: str = Query(default="nominal")):
+    """Generate a ready-to-paste, sanitized Markdown diagnostic report."""
+    state = get_mock_scenario(scenario) if (MOCK_MODE or not CACHED_STATE) else CACHED_STATE
+    return {
+        "overall_healthy": state.get("overall_healthy", False),
+        "attention_count": state.get("attention_count", 0),
+        "markdown": build_diagnostic_markdown(state),
+    }
 
 
 @app.post("/api/refresh")

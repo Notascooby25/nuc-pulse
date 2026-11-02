@@ -41,11 +41,14 @@ function renderDashboard(data) {
   // Attention box
   const attnBox = document.getElementById("attention-box");
   const attnList = document.getElementById("attention-list");
+  const exportBtn = document.getElementById("export-btn");
   if (data.attention_count > 0 && data.attention_items) {
     attnBox.style.display = "block";
     attnList.innerHTML = data.attention_items.map(it => `<li>${escapeHtml(it)}</li>`).join("");
+    if (exportBtn) exportBtn.classList.add("has-issues");
   } else {
     attnBox.style.display = "none";
+    if (exportBtn) exportBtn.classList.remove("has-issues");
   }
 
   // System Vitals
@@ -249,6 +252,63 @@ document.getElementById("refresh-btn").addEventListener("click", async () => {
     console.error(e);
   }
 });
+
+async function openDiagnosticReport() {
+  const modal = document.getElementById("report-modal");
+  const textarea = document.getElementById("report-textarea");
+  const feedback = document.getElementById("copy-feedback");
+  if (feedback) feedback.textContent = "";
+  textarea.value = "Generating diagnostic report...";
+  if (modal && typeof modal.showModal === "function") {
+    modal.showModal();
+  } else if (modal) {
+    modal.setAttribute("open", "");
+  }
+
+  try {
+    const res = await fetch(`/api/report?scenario=${currentScenario}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    textarea.value = data.markdown || "No report generated.";
+  } catch (err) {
+    textarea.value = `Failed to load diagnostic report: ${err.message}`;
+  }
+}
+
+function closeDiagnosticReport() {
+  const modal = document.getElementById("report-modal");
+  if (modal && typeof modal.close === "function") {
+    modal.close();
+  } else if (modal) {
+    modal.removeAttribute("open");
+  }
+}
+
+async function copyDiagnosticReport() {
+  const textarea = document.getElementById("report-textarea");
+  const feedback = document.getElementById("copy-feedback");
+  try {
+    await navigator.clipboard.writeText(textarea.value);
+    if (feedback) feedback.textContent = "✅ Copied to clipboard! Ready to paste into chat.";
+  } catch {
+    textarea.select();
+    document.execCommand("copy");
+    if (feedback) feedback.textContent = "✅ Copied to clipboard!";
+  }
+}
+
+function downloadDiagnosticReport() {
+  const textarea = document.getElementById("report-textarea");
+  const blob = new Blob([textarea.value], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `nuc-pulse-diagnostic-${new Date().toISOString().slice(0, 10)}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 // Initial load and periodic timer
 fetchStatus();

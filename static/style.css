@@ -116,6 +116,30 @@ body {
   border-color: var(--blue);
 }
 
+.btn-primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-export.has-issues {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: var(--amber);
+  color: #fde68a;
+  font-weight: 600;
+}
+
+.btn-export-alert {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: var(--red);
+  color: #fecaca;
+  font-weight: 600;
+}
+
 /* Preview Bar */
 .preview-bar {
   background: #1e1b4b;
@@ -139,10 +163,18 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.attention-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .attention-title {
   font-weight: 700;
   color: var(--red);
-  margin-bottom: 0.5rem;
 }
 
 .attention-box ul {
@@ -425,4 +457,70 @@ body {
   color: #6b7280;
   padding-top: 1.5rem;
   border-top: 1px solid var(--card-border);
+}
+
+/* Diagnostic Report Modal */
+.report-modal {
+  background: var(--card-bg);
+  color: var(--text-main);
+  border: 1px solid #374151;
+  border-radius: 10px;
+  padding: 1.25rem;
+  width: min(820px, 94vw);
+  max-height: 88vh;
+  margin: auto;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.7);
+}
+
+.report-modal::backdrop {
+  background: rgba(3, 7, 18, 0.75);
+  backdrop-filter: blur(2px);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.modal-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0.85rem 0;
+  flex-wrap: wrap;
+}
+
+.copy-feedback {
+  font-size: 0.8rem;
+  color: var(--green);
+  font-weight: 600;
+}
+
+.report-textarea {
+  width: 100%;
+  height: 52vh;
+  background: #030712;
+  color: #e2e8f0;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 0.85rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  resize: vertical;
 }
