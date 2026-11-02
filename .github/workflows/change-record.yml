@@ -1,0 +1,23 @@
+name: Change record
+
+# Blocks merging until CHANGELOG.md is updated (or the PR has the no-changelog
+# label) and every heading of the change record has text under it.
+on:
+  pull_request:
+    branches: ["main"]
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  change-record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check changelog and change record
+        run: python3 -I scripts/check-change-record.py

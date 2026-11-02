@@ -4,9 +4,9 @@ from src.report_builder import build_diagnostic_markdown
 
 def test_build_diagnostic_markdown_degraded():
     state = get_mock_scenario("degraded")
-    # Inject a private IP and a healthcheck URL to verify automatic scrubbing
+    # Inject an IP (reserved documentation range) and a healthcheck URL to verify automatic scrubbing
     state["backups"]["offsite"][1]["log_tail"] += (
-        "Connecting to 192.168.68.126 and pinging https://hc-ping.com/12345678-abcd-ef00\n"
+        "Connecting to 192.0.2.10 and pinging https://hc-ping.com/12345678-abcd-ef00\n"
     )
     md = build_diagnostic_markdown(state)
 
@@ -17,7 +17,7 @@ def test_build_diagnostic_markdown_degraded():
     assert "HTTP 500 Server Error" in md
     assert "3 security" in md
     # Verify redaction of private IP and secret URL
-    assert "192.168.68.126" not in md
+    assert "192.0.2.10" not in md
     assert "<redacted-ip>" in md
     assert "12345678-abcd-ef00" not in md
     assert "hc-ping.com/<redacted>" in md

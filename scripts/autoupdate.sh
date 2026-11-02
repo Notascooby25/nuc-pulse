@@ -62,15 +62,27 @@ fi
 # Check if requirements.txt changed between commits
 REQ_CHANGED="$(git diff --name-only "$LOCAL_HASH" "$REMOTE_HASH" -- requirements.txt 2>/dev/null || true)"
 
-# Pull changes
-echo "Pulling latest changes from origin/main..."
-git pull origin main --quiet
-
-# Update dependencies if requirements.txt changed
-if [ -n "$REQ_CHANGED" ] && [ -x "$REPO_DIR/.venv/bin/pip" ]; then
-    echo "requirements.txt updated; reinstalling virtualenv dependencies..."
-    "$REPO_DIR/.venv/bin/pip" install -r requirements.txt --quiet
+# Only take a straightforward update; never make a merge here
+if ! git merge-base --is-ancestor "$LOCAL_HASH" "$REMOTE_HASH"; then
+    echo "Error: this copy has commits that origin/main doesn't; not updating. Needs a person to look."
+    exit 1
 fi
+
+# Install the new dependencies before updating the code, so a failed install
+# leaves the working version in place and is retried on the next run
+if [ -n "$REQ_CHANGED" ] && [ -x "$REPO_DIR/.venv/bin/pip" ]; then
+    echo "requirements.txt updated; installing dependencies first..."
+    REQ_FILE="$(mktemp)"
+    trap 'rm -f "$REQ_FILE"' EXIT
+    git show "$REMOTE_HASH:requirements.txt" > "$REQ_FILE"
+    if ! "$REPO_DIR/.venv/bin/pip" install -r "$REQ_FILE" --quiet; then
+        echo "Error: installing dependencies failed; keeping ${LOCAL_HASH:0:7} and retrying next run."
+        exit 1
+    fi
+fi
+
+echo "Updating to ${REMOTE_HASH:0:7}..."
+git merge --ff-only --quiet "$REMOTE_HASH"
 
 # Gracefully restart systemd user service
 if command -v systemctl >/dev/null 2>&1; then
