@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.app_inspector import inspect_apps_and_containers
 from src.backup_inspector import inspect_backups
+from src.changelog import latest_release
 from src.mock_data import get_mock_scenario
 from src.report_builder import build_diagnostic_markdown
 from src.system_collector import collect_fast_vitals, collect_os_updates
@@ -16,6 +17,7 @@ from src.system_collector import collect_fast_vitals, collect_os_updates
 CACHED_STATE = {}
 MOCK_MODE = os.environ.get("NUC_PULSE_MOCK", "0") in ["1", "true", "yes"]
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+CHANGELOG_PATH = Path(__file__).resolve().parent.parent / "CHANGELOG.md"
 
 
 async def update_cached_state():
@@ -112,6 +114,12 @@ async def get_diagnostic_report(scenario: str = Query(default="nominal")):
         "attention_count": state.get("attention_count", 0),
         "markdown": build_diagnostic_markdown(state),
     }
+
+
+@app.get("/api/release")
+async def get_release():
+    """Running version and its changelog entry, read from CHANGELOG.md."""
+    return latest_release(CHANGELOG_PATH) or {"version": None, "date": None, "changes": []}
 
 
 @app.post("/api/refresh")
