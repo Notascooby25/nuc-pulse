@@ -2,6 +2,10 @@
 
 What changed in each version, newest first, in plain English. One entry per release, added just before the owner's go-ahead.
 
+## 0.2.4 - 2026-11-03
+- The footer shows which version is running, with a "What's new" link that lists that version's changes. It's read from this changelog, so it updates with every release.
+- The browser tab shows the 🖥️ computer icon from the header.
+
 ## 0.2.3 - 2026-11-03
 - Fedora OS updates are now counted using direct package checks rather than advisory bulletins. This stops false "security updates pending" warnings caused by historical advisories for retained fallback kernels or table header rows.
 - Routine, non-security package updates (such as Tailscale or Docker Compose plugins) are reported accurately and no longer turn the dashboard red when no security patches are waiting.
