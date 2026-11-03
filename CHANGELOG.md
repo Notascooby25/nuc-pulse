@@ -2,6 +2,10 @@
 
 What changed in each version, newest first, in plain English. One entry per release, added just before the owner's go-ahead.
 
+## 0.2.5 - 2026-11-03
+- The local preview script no longer loses track of a running preview. It refuses to start if the port is already in use, and `down` can stop a leftover preview from an earlier session. The dashboard itself is unchanged.
+- New dev-only screenshot tool for the preview, so PC and phone views can be checked before the owner is asked to look. It's never installed on the server.
+
 ## 0.2.4 - 2026-11-03
 - The footer shows which version is running, with a "What's new" link that lists that version's changes. It's read from this changelog, so it updates with every release.
 - The browser tab shows the 🖥️ computer icon from the header.
