@@ -163,13 +163,13 @@
   </dialog>
 
   <!-- What's New Modal -->
-  <dialog id="release-modal" class="report-modal release-modal">
+  <dialog id="release-modal" class="report-modal release-modal" aria-labelledby="release-title">
     <div class="modal-header">
       <div>
         <h3 class="modal-title" id="release-title">What's new</h3>
         <div class="modal-sub" id="release-date"></div>
       </div>
-      <button class="btn btn-sm" onclick="closeReleaseNotes()" aria-label="Close modal">✕ Close</button>
+      <button class="btn btn-sm" onclick="closeReleaseNotes()" aria-label="Close">✕ Close</button>
     </div>
     <ul id="release-changes" class="release-changes"></ul>
   </dialog>

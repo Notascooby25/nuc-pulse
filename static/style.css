@@ -498,7 +498,7 @@ body {
 }
 
 /* What's New Modal */
-.release-modal {
+.report-modal.release-modal {
   width: min(560px, 94vw);
 }
 
