@@ -57,13 +57,24 @@ async def test_collect_os_updates_all_clean(tmp_path):
 @pytest.mark.asyncio
 async def test_collect_os_updates_fedora_dnf(tmp_path):
     missing_file = tmp_path / "no-such-file"
-    fake_sec_out = "FEDORA-2026-12345  Important/Sec. kernel-6.11.5-300.fc44.x86_64\n"
-    fake_all_out = "kernel.x86_64  6.11.5-300.fc44  updates\nvim-minimal.x86_64  9.1.0-1.fc44  updates\n"
+    fake_sec_json = (
+        '{"upgrades": ['
+        '{"name": "kernel", "arch": "x86_64", "evr": "6.11.5-300.fc44", "repository": "updates"}'
+        ']}'
+    )
+    fake_all_json = (
+        '{"upgrades": ['
+        '{"name": "kernel", "arch": "x86_64", "evr": "6.11.5-300.fc44", "repository": "updates"},'
+        '{"name": "vim-minimal", "arch": "x86_64", "evr": "9.1.0-1.fc44", "repository": "updates"}'
+        ']}'
+    )
 
     def fake_run(cmd, **kwargs):
+        assert "-C" in cmd or "--cacheonly" in cmd
+        assert "check-update" in cmd
         if "--security" in cmd:
-            return subprocess.CompletedProcess(cmd, 100, stdout=fake_sec_out, stderr="")
-        return subprocess.CompletedProcess(cmd, 100, stdout=fake_all_out, stderr="")
+            return subprocess.CompletedProcess(cmd, 100, stdout=fake_sec_json, stderr="")
+        return subprocess.CompletedProcess(cmd, 100, stdout=fake_all_json, stderr="")
 
     with patch("shutil.which", return_value="/usr/bin/dnf"), patch("subprocess.run", side_effect=fake_run):
         res = await collect_os_updates(updates_file=str(missing_file))
@@ -71,6 +82,57 @@ async def test_collect_os_updates_fedora_dnf(tmp_path):
         assert res["total_updates"] == 2
         assert res["healthy"] is False
         assert "1 security" in res["summary"]
+
+
+@pytest.mark.asyncio
+async def test_collect_os_updates_fedora_dnf_json_non_security(tmp_path):
+    missing_file = tmp_path / "no-such-file"
+    all_json = (
+        '{"upgrades": ['
+        '{"name": "docker-compose-plugin", "arch": "x86_64", "evr": "5.7.0-1.fc44", "repository": "docker-ce-stable"},'
+        '{"name": "tailscale", "arch": "x86_64", "evr": "1.104.5-1", "repository": "tailscale"}'
+        ']}'
+    )
+    sec_json = '{}'
+
+    def fake_run(cmd, **kwargs):
+        assert "-C" in cmd or "--cacheonly" in cmd
+        assert "check-update" in cmd
+        if "--security" in cmd:
+            return subprocess.CompletedProcess(cmd, 0, stdout=sec_json, stderr="")
+        return subprocess.CompletedProcess(cmd, 100, stdout=all_json, stderr="")
+
+    with patch("shutil.which", return_value="/usr/bin/dnf"), patch("subprocess.run", side_effect=fake_run):
+        res = await collect_os_updates(updates_file=str(missing_file))
+        assert res["total_updates"] == 2
+        assert res["security_updates"] == 0
+        assert res["healthy"] is True
+        assert res["summary"] == "2 updates pending (0 security)"
+
+
+@pytest.mark.asyncio
+async def test_collect_os_updates_fedora_dnf_text_fallback_ignores_headers(tmp_path):
+    missing_file = tmp_path / "no-such-file"
+    all_text = (
+        "Upgrades (available for reinstall, available for upgrade)\n"
+        "docker-compose-plugin.x86_64  5.7.0-1.fc44  docker-ce-stable\n"
+        "tailscale.x86_64  1.104.5-1  tailscale\n"
+    )
+    sec_text = ""
+
+    def fake_run(cmd, **kwargs):
+        assert "-C" in cmd or "--cacheonly" in cmd
+        assert "check-update" in cmd
+        if "--security" in cmd:
+            return subprocess.CompletedProcess(cmd, 0, stdout=sec_text, stderr="")
+        return subprocess.CompletedProcess(cmd, 100, stdout=all_text, stderr="")
+
+    with patch("shutil.which", return_value="/usr/bin/dnf"), patch("subprocess.run", side_effect=fake_run):
+        res = await collect_os_updates(updates_file=str(missing_file))
+        assert res["total_updates"] == 2
+        assert res["security_updates"] == 0
+        assert res["healthy"] is True
+        assert res["summary"] == "2 updates pending (0 security)"
 
 
 def test_service_template_substitutes_repo_dir(tmp_path):

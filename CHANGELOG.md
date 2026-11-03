@@ -2,6 +2,10 @@
 
 What changed in each version, newest first, in plain English. One entry per release, added just before the owner's go-ahead.
 
+## 0.2.3 - 2026-11-03
+- Fedora OS updates are now counted using direct package checks rather than advisory bulletins. This stops false "security updates pending" warnings caused by historical advisories for retained fallback kernels or table header rows.
+- Routine, non-security package updates (such as Tailscale or Docker Compose plugins) are reported accurately and no longer turn the dashboard red when no security patches are waiting.
+
 ## 0.2.2 - 2026-11-02
 - Each app is now found by its app name and role, so Sleep Wellness Tracker is checked at its web page and no longer shows a false "HTTP 401". The scrobbler and expense tracker checks no longer depend on the order Docker lists containers in.
 - If an app's container is missing, its row shows a cross saying so instead of disappearing.
