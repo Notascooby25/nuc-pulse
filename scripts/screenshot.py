@@ -18,7 +18,8 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 
 REPO_DIR = Path(__file__).resolve().parent.parent
 VIEWPORTS = {"desktop": (1366, 900), "phone": (390, 844)}
-SCENARIOS = ["nominal", "degraded"]
+# Scenario -> text the status pill shows once that scenario's data is on screen
+SCENARIOS = {"nominal": "NOMINAL", "degraded": "ATTENTION"}
 
 
 def take_screenshots(url: str, out_dir: Path) -> list[Path]:
@@ -29,13 +30,15 @@ def take_screenshots(url: str, out_dir: Path) -> list[Path]:
             for name, (width, height) in VIEWPORTS.items():
                 page = browser.new_page(viewport={"width": width, "height": height})
                 page.goto(url)
-                for scenario in SCENARIOS:
-                    if page.is_visible(f"#btn-{scenario}"):
+                # The scenario bar only appears once the first data has loaded (mock mode)
+                page.wait_for_selector("#preview-bar", state="visible")
+                for scenario, expected in SCENARIOS.items():
+                    with page.expect_response(lambda r, s=scenario: f"scenario={s}" in r.url):
                         page.click(f"#btn-{scenario}")
                     page.wait_for_function(
-                        "!document.getElementById('master-status-text').textContent.includes('CHECKING')"
+                        "t => document.getElementById('master-status-text').textContent.includes(t)",
+                        arg=expected,
                     )
-                    page.wait_for_load_state("networkidle")
                     path = out_dir / f"{name}-{scenario}.png"
                     page.screenshot(path=str(path), full_page=True)
                     saved.append(path)

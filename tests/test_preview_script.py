@@ -49,6 +49,22 @@ def test_status_reports_untracked_listener(repo, busy_port):
     assert "STOPPED" not in result.stdout
 
 
+def test_stale_pid_file_never_targets_another_program(repo):
+    """After a reboot the recorded PID can belong to something else; leave it alone."""
+    other = subprocess.Popen(["sleep", "30"])
+    try:
+        (repo / ".preview.pid").write_text(f"{other.pid}\n")
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+        assert "RUNNING" not in _run(repo, port, "status").stdout
+        _run(repo, port, "down")
+        assert other.poll() is None
+    finally:
+        other.kill()
+        other.wait()
+
+
 def test_down_leaves_foreign_process_alone(repo, busy_port):
     port = busy_port.getsockname()[1]
     _run(repo, port, "down")

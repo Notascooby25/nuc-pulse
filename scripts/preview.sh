@@ -19,16 +19,32 @@ port_in_use() {
     (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null
 }
 
-# PID recorded by `up`, if that process is still alive
+# True if the PID is this folder's preview server (exact command match, not just a live PID)
+is_preview_pid() {
+    local cmd
+    cmd="$(tr '\0' ' ' < "/proc/$1/cmdline" 2>/dev/null)" || return 1
+    [[ "$cmd" == *" $UVICORN src.main:app --host 127.0.0.1 --port $PORT " ]]
+}
+
+# PID recorded by `up`, if it is still this preview (a reused PID after a reboot doesn't count)
 tracked_pid() {
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        cat "$PID_FILE"
+    local pid
+    [ -f "$PID_FILE" ] || return 0
+    pid="$(cat "$PID_FILE")"
+    if is_preview_pid "$pid"; then
+        echo "$pid"
     fi
 }
 
-# A preview from this folder that the PID file has lost track of (exact command match only)
+# A preview from this folder that the PID file has lost track of
 leftover_pid() {
-    pgrep -f -- "^[^ ]*python[^ ]* $UVICORN src.main:app --host 127.0.0.1 --port $PORT\$" | head -n1 || true
+    local pid
+    for pid in $(pgrep -f -- "src.main:app" || true); do
+        if is_preview_pid "$pid"; then
+            echo "$pid"
+            return 0
+        fi
+    done
 }
 
 cmd="${1:-}"
@@ -51,7 +67,7 @@ case "$cmd" in
         PID=$!
 
         # Only record the PID once the server is alive and answering
-        for _ in $(seq 1 20); do
+        for _ in $(seq 1 40); do
             if ! kill -0 "$PID" 2>/dev/null; then
                 break
             fi
@@ -82,6 +98,10 @@ case "$cmd" in
                 kill -0 "$PID" 2>/dev/null || break
                 sleep 0.25
             done
+            if kill -0 "$PID" 2>/dev/null; then
+                echo "Preview server (PID: $PID) did not stop within 5 seconds."
+                exit 1
+            fi
             echo "Preview server stopped."
         elif port_in_use; then
             echo "No preview server is running, but port $PORT is in use by another program. Left it alone."
