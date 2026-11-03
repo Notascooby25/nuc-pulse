@@ -33,6 +33,20 @@ Test the dashboard locally with realistic mock data:
 
 Open your browser to [http://localhost:8520](http://localhost:8520). In preview mode, use the top bar buttons to toggle between **"All Nominal (Green Ticks)"** and **"Simulate Failure (Red Crosses)"** to see how errors are surfaced.
 
+If `up` says the port is already in use, a leftover preview is probably still running: `./scripts/preview.sh down` stops it.
+
+### Screenshots (optional, this PC only)
+
+Takes PC and phone screenshots of the running preview, in both scenarios and with "What's new" open. It needs the dev-only Playwright tool, whose browser is kept inside `.venv`:
+
+```bash
+.venv/bin/pip install -e ".[dev]"
+PLAYWRIGHT_BROWSERS_PATH=0 .venv/bin/playwright install chromium
+
+# Save screenshots to a folder outside the project
+.venv/bin/python scripts/screenshot.py /path/outside/the/project
+```
+
 ---
 
 ## Production Deployment on the NUC
