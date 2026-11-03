@@ -313,6 +313,50 @@ function downloadDiagnosticReport() {
   URL.revokeObjectURL(url);
 }
 
+function formatReleaseDate(iso) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (isNaN(d)) return iso || "";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+async function loadRelease() {
+  try {
+    const res = await fetch("/api/release");
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.version) return;
+
+    document.getElementById("release-version").textContent = `v${data.version}`;
+    document.getElementById("release-title").textContent = `What's new in v${data.version}`;
+    document.getElementById("release-date").textContent = data.date ? `Released ${formatReleaseDate(data.date)}` : "";
+    document.getElementById("release-changes").innerHTML = (data.changes || [])
+      .map(change => `<li>${escapeHtml(change)}</li>`)
+      .join("");
+    document.getElementById("release-line").hidden = false;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function openReleaseNotes() {
+  const modal = document.getElementById("release-modal");
+  if (modal && typeof modal.showModal === "function") {
+    modal.showModal();
+  } else if (modal) {
+    modal.setAttribute("open", "");
+  }
+}
+
+function closeReleaseNotes() {
+  const modal = document.getElementById("release-modal");
+  if (modal && typeof modal.close === "function") {
+    modal.close();
+  } else if (modal) {
+    modal.removeAttribute("open");
+  }
+}
+
 // Initial load and periodic timer
+loadRelease();
 fetchStatus();
 setInterval(fetchStatus, 30000);

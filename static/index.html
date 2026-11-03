@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NUC Pulse — Server Sanity Hub</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -138,6 +139,9 @@
 
     <footer class="footer">
       <span>Auto-refreshing every 30 seconds • <span id="last-updated-text">Just now</span></span>
+      <div id="release-line" class="release-line" hidden>
+        <span id="release-version"></span> · <button type="button" class="link-btn" onclick="openReleaseNotes()">What's new</button>
+      </div>
     </footer>
   </div>
 
@@ -156,6 +160,18 @@
       <span id="copy-feedback" class="copy-feedback"></span>
     </div>
     <textarea id="report-textarea" class="report-textarea" readonly spellcheck="false">Generating diagnostic report...</textarea>
+  </dialog>
+
+  <!-- What's New Modal -->
+  <dialog id="release-modal" class="report-modal release-modal">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title" id="release-title">What's new</h3>
+        <div class="modal-sub" id="release-date"></div>
+      </div>
+      <button class="btn btn-sm" onclick="closeReleaseNotes()" aria-label="Close modal">✕ Close</button>
+    </div>
+    <ul id="release-changes" class="release-changes"></ul>
   </dialog>
 
   <script src="/static/app.js"></script>
