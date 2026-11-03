@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nuc-pulse"
-version = "0.2.2"
+version = "0.2.3"
 description = "Lightweight operational health and backup sanity dashboard for Intel NUC homelab servers"
 readme = "README.md"
 requires-python = ">=3.11"
